@@ -1,0 +1,7 @@
+    rplidar_publisher:
+        ros__parameters:
+            scan_mode: ""
+            serial_port: /dev/ttyUSB0
+            serial_baudrate: 115200
+            publisher_topic: "scan"
+            frame_id: "rplidar_link"
