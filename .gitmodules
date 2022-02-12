@@ -1,0 +1,3 @@
+[submodule "src/extern/xacro"]
+	path = src/extern/xacro
+	url = https://github.com/ros/xacro.git
