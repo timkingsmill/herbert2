@@ -1,0 +1,4 @@
+bool execute # true calibrate odrives
+---
+bool success   # indicate successful run of the calibrate odrives service
+string message # informational, e.g. for error messages

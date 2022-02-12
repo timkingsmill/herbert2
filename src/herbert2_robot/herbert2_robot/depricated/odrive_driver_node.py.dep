@@ -1,0 +1,47 @@
+import fibre
+import time
+import weakref
+
+from concurrent.futures import ThreadPoolExecutor
+from typing import Iterator, List
+
+from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
+from geometry_msgs.msg import Twist
+
+import odrive
+from odrive.utils import dump_errors
+
+from odrive.enums import(
+    AXIS_STATE_FULL_CALIBRATION_SEQUENCE,
+    AXIS_STATE_CLOSED_LOOP_CONTROL,
+    AXIS_STATE_IDLE,
+
+    CONTROL_MODE_VELOCITY_CONTROL,
+    CONTROL_MODE_POSITION_CONTROL,
+
+    ODRIVE_ERROR_NONE,
+
+    INPUT_MODE_INACTIVE,      # 0
+    INPUT_MODE_PASSTHROUGH,   # 1
+)
+
+# ---------------------------------------------------------------
+# ---------------------------------------------------------------
+
+#class ODriveChannel: pass
+#class ODriveAxis: pass
+
+# ---------------------------------------------------------------
+# ---------------------------------------------------------------
+
+
+class ODriveDriverNode(Node): 
+
+    #MAX_LINEAR_VELOCITY = 1.0
+
+    # -----------------------------------------------------------
+
+    def __init__(self) -> None:
+        """ ODrive Driver Node Constructor """
+        super().__init__(node_name = 'sssodrive_driver_node')

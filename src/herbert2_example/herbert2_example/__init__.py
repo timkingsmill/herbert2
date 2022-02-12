@@ -1,0 +1,1 @@
+from .herbert2_obstacle_detection import Herbert2ObstacleDetection

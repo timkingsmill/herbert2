@@ -1,0 +1,296 @@
+
+# --------------------------------------------------------------
+import sys
+import math
+from serial import Serial
+from serial import SerialException
+from time import time
+
+from rclpy.node import Node
+from rclpy.parameter import Parameter
+from rclpy.qos import QoSProfile
+
+from sensor_msgs.msg import Imu
+from herbert2_geometry import Quaternion
+
+from .sensor import Sensor 
+
+# --------------------------------------------------------------
+
+class IMUSensor(Sensor):
+
+    # ----------------------------------------------------------
+
+    def __init__(self, node: Node) -> None:
+        super().__init__(node)
+        # Serial port default parameters
+        self._port = '/dev/tty???'
+        self._baudrate = 115200
+
+        self._load_paramaters()
+        self._update_count = 0
+        self._serial = self._open_serial_port()
+        self._imu_message = self._create_imu_message()
+        self._imu_publisher = self._node_ref().create_publisher(Imu, 'imu_data', QoSProfile(depth = 1))
+
+    # ----------------------------------------------------------
+
+    def update(self) -> None:
+        if (self._update_count == 0):
+            self._setup_imu_sensor()
+            self._node_ref().get_logger().info('Flushing first 100 IMU entries...')
+ 
+        data = bytearray(self._serial.readline()).decode("utf-8")
+        self._node_ref().get_logger().info(data)
+        #if (self._update_count > 100):
+        #if (self._update_count > 1):
+        #    #self._node_ref().get_logger().info('UPDATE IMUSensor > 100')
+        #    self._update_imu_message(data)
+        #    #self._imu_publisher.publish(self._imu_message)
+
+        self._update_count += 1
+
+    # ----------------------------------------------------------
+
+    def _create_imu_message(self) -> Imu:
+        message = Imu()
+
+        # Orientation covariance estimation:
+        # Observed orientation noise: 0.3 degrees in x, y, 0.6 degrees in z
+        # Magnetometer linearity: 0.1% of full scale (+/- 2 gauss) => 4 milligauss
+        # Earth's magnetic field strength is ~0.5 gauss, so magnetometer nonlinearity could
+        # cause ~0.8% yaw error (4mgauss/0.5 gauss = 0.008) => 2.8 degrees, or 0.050 radians
+        # i.e. variance in yaw: 0.0025
+        # Accelerometer non-linearity: 0.2% of 4G => 0.008G. This could cause
+        # static roll/pitch error of 0.8%, owing to gravity orientation sensing
+        # error => 2.8 degrees, or 0.05 radians. i.e. variance in roll/pitch: 0.0025
+        # so set all covariances the same.
+        message.orientation_covariance = [
+            0.0025, 0.0,    0.0, 
+            0.0,    0.0025, 0.0, 
+            0.0,    0.0,    0.0025
+        ]
+
+        # Angular velocity covariance estimation:
+        # Observed gyro noise: 4 counts => 0.28 degrees/sec
+        # nonlinearity spec: 0.2% of full scale => 8 degrees/sec = 0.14 rad/sec
+        # Choosing the larger (0.14) as std dev, variance = 0.14^2 ~= 0.02
+        message.angular_velocity_covariance = [
+            0.02, 0.0,  0.0,
+            0.0,  0.02, 0.0,
+            0.0,  0.0,  0.02
+        ]
+
+        # linear acceleration covariance estimation:
+        # observed acceleration noise: 5 counts => 20milli-G's ~= 0.2m/s^2
+        # nonliniarity spec: 0.5% of full scale => 0.2m/s^2
+        # Choosing 0.2 as std dev, variance = 0.2^2 = 0.04
+        message.linear_acceleration_covariance = [
+            0.04, 0.0,  0.0,
+            0.0,  0.04, 0.0,
+            0.0,  0.0,  0.04
+        ]
+
+        return message
+
+    # ----------------------------------------------------------
+
+    def _dump_imu_calibration(self):
+        self._serial.flushInput()
+        self._serial.write(('#p').encode("utf-8"))
+        calibration_data = self._serial.readlines()
+        calibration_text = 'Printing set calibration values:\r\n\r\n'
+        for row in calibration_data:
+            line = bytearray(row).decode("utf-8")
+            calibration_text += line
+        self._node_ref().get_logger().info(calibration_text)
+
+    # ----------------------------------------------------------
+
+    def _load_paramaters(self) -> None:
+        self._node_ref().get_logger().info('Loading Parameters.')
+
+        def get_param(name: str, default) -> Parameter:
+            parm_name: str = f'imu_sensor.{name}'
+            self._node_ref().declare_parameter(parm_name, default)
+            return self._node_ref().get_parameter(parm_name)
+
+        # Serial Port
+        self._port     = get_param('port', self._port).value
+        self._baudrate = get_param('baudrate', self._baudrate).value
+
+        # Accelerometer Calibration
+        self._accel_x_min = get_param('accel_x_min', -250.0).value
+        self._accel_x_max = get_param('accel_x_max',  250.0).value
+        self._accel_y_min = get_param('accel_y_min', -250.0).value
+        self._accel_y_max = get_param('accel_y_max',  250.0).value
+        self._accel_z_min = get_param('accel_z_min', -250.0).value
+        self._accel_z_max = get_param('accel_z_max',  250.0).value
+
+        # Magnetometer Calibration
+        self._magn_x_min = get_param('magn_x_min', -600.0).value
+        self._magn_x_max = get_param('magn_x_max',  600.0).value
+        self._magn_y_min = get_param('magn_y_min', -600.0).value
+        self._magn_y_max = get_param('magn_y_max',  600.0).value
+        self._magn_z_min = get_param('magn_z_min', -600.0).value
+        self._magn_z_max = get_param('magn_z_max',  600.0).value
+
+        # Magnetometer Extended Calibration
+        self._magn_use_extended_calibration = \
+            get_param('magn_use_extended_calibration', False).value
+        self._magn_ellipsoid_center = get_param('magn_ellipsoid_center', [0, 0, 0]).value
+
+        # Transform is 3 x 3 matrix array.
+        # The matrix parameter is represented by a flat array
+        self._magn_ellipsoid_transform = \
+            get_param('magn_ellipsoid_transform', [0, 0, 0, 0, 0, 0, 0, 0, 0]).value
+
+        self._imu_yaw_calibration = get_param('imu_yaw_calibration', 0.0).value
+
+        # Gyroscope Calibration
+        self._gyro_average_offset_x = get_param('gyro_average_offset_x', 0.0).value
+        self._gyro_average_offset_y = get_param('gyro_average_offset_y', 0.0).value
+        self._gyro_average_offset_z = get_param('gyro_average_offset_z', 0.0).value
+
+    # ----------------------------------------------------------
+
+    def _open_serial_port(self) -> Serial:
+        self._node_ref().get_logger().info(f'Opening: {self._port} ...')
+        try:
+            serial = Serial(port = self._port, baudrate = self._baudrate, timeout = 1)
+            self._node_ref().get_logger().info(f'Opened Port: {self._port}')
+        except SerialException:
+            self._node_ref().get_logger().fatal(f'IMU not found at {self._port}. Did you specify the correct port in the launch file?')
+            sys.exit(2)
+        # wait for the IMU firmware to boot.
+        import time
+        time.sleep(1)    
+
+        return serial
+
+    # ----------------------------------------------------------
+
+    def _update_imu_message(self, data: bytes):
+        """
+          Parse data and populate the Imu message
+        """
+        # Validate IMU data
+        if ((data.find('#YPRAG=') == -1) or (data.find('\r\n') == -1)): 
+            self._node_ref().get_logger().warn('Bad IMU data or bad sync')
+        data = data.replace('#YPRAG=', '')   # Delete '#YPRAG='
+        data = data.replace('\r\n', '')      # Delete '\r\n'
+        fields = data.split(',')
+
+        #self._node_ref().get_logger().info(str(data))
+
+        if len(fields) != 9:
+            self._node_ref().get_logger().warn('Bad IMU data or bad sync. (Field count error)')
+        else:
+            # Prepare IMU message
+            # AHRS firmware accelerations are negated
+            # This means y and z are correct for ROS, but x needs reversing
+            message: Imu = self._imu_message
+
+            # Set the message header.
+            # Current time in nanoseconds since the Epoch
+            message.header.stamp.sec = int(time())  #Time().nanoseconds
+            message.header.frame_id = 'imu_frame'
+
+            # in AHRS firmware z axis points down, in ROS z axis points up (see REP 103)    
+            deg2rad = math.pi / 180.0
+            yaw_deg = -float(fields[0])
+            yaw_deg = yaw_deg + self._imu_yaw_calibration
+            if yaw_deg > 180.0:
+                yaw_deg = yaw_deg - 360.0
+            if yaw_deg < -180.0:
+                yaw_deg = yaw_deg + 360.0
+            yaw = yaw_deg * deg2rad
+
+            #in AHRS firmware y axis points right, in ROS y axis points left (see REP 103)
+            pitch = -float(fields[1]) * deg2rad
+            roll  =  float(fields[2]) * deg2rad
+
+            # sensor reports accel as 256.0 = 1G (9.8m/s^2). Convert to m/s^2.
+            accel_factor = 9.806 / 256.0    
+            message.linear_acceleration.x = -float(fields[3]) * accel_factor
+            message.linear_acceleration.y =  float(fields[4]) * accel_factor
+            message.linear_acceleration.z =  float(fields[5]) * accel_factor
+
+            # AHRS angular velocity
+            message.angular_velocity.x = float(fields[6])
+            # in AHRS firmware y axis points right, in ROS y axis points left (see REP 103)
+            message.angular_velocity.y = -float(fields[7])
+            #in AHRS firmware z axis points down, in ROS z axis points up (see REP 103) 
+            message.angular_velocity.z = -float(fields[8])
+
+            self._node_ref().get_logger().info(str(yaw_deg))
+
+            quaternion = Quaternion.from_euler(roll, pitch, yaw, use_degrees = True)
+
+            message.orientation.x = quaternion.x
+            message.orientation.y = quaternion.y
+            message.orientation.z = quaternion.z
+            message.orientation.w = quaternion.w
+
+    # ----------------------------------------------------------
+
+    def _setup_imu_sensor(self):
+        # Stop IMU datastream
+        self._serial.write(('#o0').encode('utf-8'))
+        # manually flush old input
+        _ = self._serial.readlines() 
+
+        # Set IMU output mode as angle and sensor readings in text
+        self._serial.write(('#ox').encode('utf-8')) 
+
+        # Set the IMU calibration parameters.
+        #self._setup_imu_calibration()
+        #self._dump_imu_calibration()
+       
+        # Start IMU datastream
+        self._serial.write(('#o1').encode('utf-8'))
+
+    # ----------------------------------------------------------
+
+    def _setup_imu_calibration(self):
+        """ Set the IMU calibration parameters """
+        self._node_ref().get_logger().info('Writing calibration values to razor IMU board...')
+
+        # Set Accelerometer Calibration
+        self._serial.write(('#caxm' + str(self._accel_x_min)).encode("utf-8"))
+        self._serial.write(('#caxM' + str(self._accel_x_max)).encode("utf-8"))
+        self._serial.write(('#caym' + str(self._accel_y_min)).encode("utf-8"))
+        self._serial.write(('#cayM' + str(self._accel_y_max)).encode("utf-8"))
+        self._serial.write(('#cazm' + str(self._accel_z_min)).encode("utf-8"))
+        self._serial.write(('#cazM' + str(self._accel_z_max)).encode("utf-8"))
+
+        # Set Magnetometer Calibration
+        if (not self._magn_use_extended_calibration):
+            self._serial.write(('#cmxm' + str(self._magn_x_min)).encode("utf-8"))
+            self._serial.write(('#cmxM' + str(self._magn_x_max)).encode("utf-8"))
+            self._serial.write(('#cmym' + str(self._magn_y_min)).encode("utf-8"))
+            self._serial.write(('#cmyM' + str(self._magn_y_max)).encode("utf-8"))
+            self._serial.write(('#cmzm' + str(self._magn_z_min)).encode("utf-8"))
+            self._serial.write(('#cmzM' + str(self._magn_z_max)).encode("utf-8"))
+        else:
+            self._serial.write(('#ccx' + str(self._magn_ellipsoid_center[0])).encode("utf-8"))
+            self._serial.write(('#ccy' + str(self._magn_ellipsoid_center[1])).encode("utf-8"))
+            self._serial.write(('#ccz' + str(self._magn_ellipsoid_center[2])).encode("utf-8"))
+
+            self._serial.write(('#ctxX' + str(self._magn_ellipsoid_transform[0])).encode("utf-8"))
+            self._serial.write(('#ctxY' + str(self._magn_ellipsoid_transform[1])).encode("utf-8"))
+            self._serial.write(('#ctxZ' + str(self._magn_ellipsoid_transform[2])).encode("utf-8"))
+            self._serial.write(('#ctyX' + str(self._magn_ellipsoid_transform[3])).encode("utf-8"))
+            self._serial.write(('#ctyY' + str(self._magn_ellipsoid_transform[4])).encode("utf-8"))
+            self._serial.write(('#ctyZ' + str(self._magn_ellipsoid_transform[5])).encode("utf-8"))
+            self._serial.write(('#ctzX' + str(self._magn_ellipsoid_transform[6])).encode("utf-8"))
+            self._serial.write(('#ctzY' + str(self._magn_ellipsoid_transform[7])).encode("utf-8"))
+            self._serial.write(('#ctzZ' + str(self._magn_ellipsoid_transform[8])).encode("utf-8"))
+      
+        # Set Gyroscope Calibration
+        self._serial.write(('#cgx' + str(self._gyro_average_offset_x)).encode("utf-8"))
+        self._serial.write(('#cgy' + str(self._gyro_average_offset_y)).encode("utf-8"))
+        self._serial.write(('#cgz' + str(self._gyro_average_offset_z)).encode("utf-8"))
+
+
+# --------------------------------------------------------------
