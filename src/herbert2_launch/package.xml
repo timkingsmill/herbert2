@@ -2,10 +2,10 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
 
-    <name>herbert2_bringup</name>
+    <name>herbert2_launch</name>
     <version>0.0.0</version>
-    <description>TODO: Package description</description>
-    <maintainer email="herbert@todo.todo">herbert</maintainer>
+    <description>Herbert2 Launch Package</description>
+    <maintainer email="tim.kingsmill@gmail.com">Tim Kingsmill</maintainer>
     <license>TODO: License declaration</license>
 
 
