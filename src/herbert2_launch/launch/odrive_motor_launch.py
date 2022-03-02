@@ -1,3 +1,8 @@
+"""
+    This launch file executes all ROS nodes on the
+    Raspberry Pi that drives the ODrive controllers and motors.
+"""
+
 import os
 
 from ament_index_python.packages import get_package_share_directory
