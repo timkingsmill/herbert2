@@ -11,7 +11,6 @@ from time import sleep
 from rclpy.node import Node
 
 from .odrive_driver import ODriveDriver
-#from .diff_odrive_controller import DiffODriveController
 from .sensors import JointSensors 
 
 # IMUSensor

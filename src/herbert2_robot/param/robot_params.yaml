@@ -1,38 +1,39 @@
   herbert2_robot:
     ros__parameters:
       odrv0:
-        path: 'usb'
-        serial_number: 35709324447053
+        #path: 'usb'
+        serial_number: 207A39994D4D
+       
       odrv1:
-        path: 'usb'
-        serial_number: 35773749087565
+        #path: 'usb'
+        serial_number: 2089399B4D4D
 
-            # Accelerometer Calibration
-        accel_x_min: -250.0
-        accel_x_max:  250.0
-        accel_y_min: -250.0
-        accel_y_max:  250.0
-        accel_z_min: -250.0
-        accel_z_max:  250.0
+      # Accelerometer Calibration
+      accel_x_min: -250.0
+      accel_x_max:  250.0
+      accel_y_min: -250.0
+      accel_y_max:  250.0
+      accel_z_min: -250.0
+      accel_z_max:  250.0
 
-        # Magnetometer Standard Calibration
-        magn_x_min: -600.0
-        magn_x_max:  600.0
-        magn_y_min: -600.0
-        magn_y_max:  600.0
-        magn_z_min: -600.0
-        magn_z_max:  600.0
+      # Magnetometer Standard Calibration
+      magn_x_min: -600.0
+      magn_x_max:  600.0
+      magn_y_min: -600.0
+      magn_y_max:  600.0
+      magn_z_min: -600.0
+      magn_z_max:  600.0
 
-        # extended calibration
-        magn_use_extended_calibration: false
-        magn_ellipsoid_center: [0.0, 0.0, 0.0]
-        magn_ellipsoid_transform: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      # extended calibration
+      magn_use_extended_calibration: false
+      magn_ellipsoid_center: [0.0, 0.0, 0.0]
+      magn_ellipsoid_transform: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-        # AHRS to robot calibration
-        imu_yaw_calibration: 0.0
+      # AHRS to robot calibration
+      imu_yaw_calibration: 0.0
 
-        # Gyroscope Calibration
-        gyro_average_offset_x: 0.0
-        gyro_average_offset_y: 0.0
-        gyro_average_offset_z: 0.0
+      # Gyroscope Calibration
+      gyro_average_offset_x: 0.0
+      gyro_average_offset_y: 0.0
+      gyro_average_offset_z: 0.0
 

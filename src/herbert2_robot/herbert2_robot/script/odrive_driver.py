@@ -1,4 +1,6 @@
-import fibre
+import os
+import sys
+
 import time
 import weakref
 
@@ -10,6 +12,12 @@ from rclpy.qos import qos_profile_sensor_data
 from geometry_msgs.msg import Twist
 
 from herbert2_geometry.robot_maths import wheel_velocity_from_vector
+
+# We want to use the fibre package that is included with the odrive package
+# in order to avoid any version mismatch issues,
+#sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "pyfibre"))
+#import fibre
+
 import odrive
 from odrive.utils import dump_errors
 
@@ -46,44 +54,48 @@ class ODriveDriver(NodeDecorator):
 
     def __init__(self, node: Node) -> None:
         super().__init__(node)
-        
         """ ODrive Driver constructor """
         self.get_logger().info('Initializing Herbert2 ODrive Driver Node') 
-        """
-        Connect to the ODrive controller board.
-        """
-        # Find a connected ODrive (this will block until connected)
-        odrives = fibre.find_any(find_multiple=2)
-
-        if (len(odrives) != 2):
-            msg = 'Unable to connect to both ODrive Driver Channels'
-            self.get_logger().error(msg) 
-            raise Exception(msg) 
+       
+        # Connect to the ODrive controller boards.
+        controllers = [None, None]
 
         for index in [0, 1]:
             drive_name: str = f'odrv{index}'
 
             # Declare parameters
-            self._node_ref().declare_parameter(drive_name + '.path', 'serial:/dev/tty???')
-            path: str = self._node_ref().get_parameter(drive_name + '.path').value
-
             self._node_ref().declare_parameter(drive_name + '.serial_number', 0)
-            serial_num: int = self._node_ref().get_parameter(drive_name + '.serial_number').value
+            requested_hex_serial_num = self._node_ref().get_parameter(drive_name + '.serial_number').value
+            
+            # Find the odrive controller
+            self.get_logger().info(
+                f"Looking for ODrive controller. Serial Number: {requested_hex_serial_num}")
 
-            # Check the serial numbers.
-            if (odrives[index].serial_number == serial_num):
+            usb_search_path = 'usb:idVendor=0x1209,idProduct=0x0D32,bInterfaceClass=0,bInterfaceSubClass=1,bInterfaceProtocol=0'
+            self.get_logger().info(
+                f"USB Path: ({usb_search_path})")
+            
+            # The serial number must be a hex number while searching for an ODrive controller.
+            controllers[index] = odrive.find_any(path=usb_search_path, serial_number=requested_hex_serial_num)
+
+            # Check the serial numbers. (The serial number is base 10)
+            controller_serial_number = controllers[index].serial_number
+            # Convert the hex string to a base 10 decimal value.
+            requested_serial_num = int(requested_hex_serial_num, 16)
+
+            # Compare the base 10 decimal serial numbers.
+            if (controller_serial_number == requested_serial_num):
                 self.get_logger().info(
-                    f'ODrive Driver connected with the correct serial number. ({odrives[index].serial_number})')
+                    f'ODrive Driver connected with the correct serial number. ({controller_serial_number})')
             else:
-                msg = f'Unable to assign an ODrive Driver. Serial number is not correct. {serial_num}'
+                msg = f'Unable to assign an ODrive Driver. Serial number is not correct. Got: {controller_serial_number} Expected: {requested_serial_num}'
                 self.get_logger().fatal(msg) 
                 raise Exception(msg) 
 
-
-        self._odrv0 = ODriveChannel(node, self, odrives[0])
+        self._odrv0 = ODriveChannel(node, self, controllers[0])
         self._config_channel(self._odrv0)
 
-        self._odrv1 = ODriveChannel(node, self, odrives[1])
+        self._odrv1 = ODriveChannel(node, self, controllers[1])
         self._config_channel(self._odrv1)
         
         self._config_axis(self._axis0)
@@ -91,12 +103,10 @@ class ODriveDriver(NodeDecorator):
         self._config_axis(self._axis2)
 
         # Initialise subscribers
-        
         self._velocity_sub = self._node_ref().create_subscription(Twist, 
                             'cmd_vel', 
                             self._velocity_message_callback, qos_profile = qos_profile_sensor_data)
-
-
+        
         self._is_calibrated = False
         self.get_logger().info('The ODrive Driver is ready for calibration.') 
 
@@ -163,11 +173,12 @@ class ODriveDriver(NodeDecorator):
         if (self._is_calibrated == False):
             self._node_ref().get_logger().info('Calibrating all axis.') 
 
-            def calibrate_axis(axis: ODriveAxis):
+            # Thread procedure
+            def calibrate_axis_thread_proc(axis: ODriveAxis):
                 axis.calibrate_axis()
 
             with ThreadPoolExecutor() as executer:
-                executer.map(calibrate_axis, self._axes)
+                executer.map(calibrate_axis_thread_proc, self._axes)
 
             self._node_ref().get_logger().info('Calibrating all axis complete') 
 
@@ -390,23 +401,24 @@ class ODriveAxis():
                 print('Unexpected Axis State.')
 
             # cache the current state (probably idle)
-            state = self.axis.current_state
-
-            #print(f'State: {state}')
+            state_cache = self.axis.current_state
 
             # Perform the calibration sequence.
             self.axis.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
 
+            ####self._node_ref().get_logger().info(f'Calibrated {self._axis_name} OK.')
+
+            # Wait for the calibration to complete.
             while self.axis.current_state != AXIS_STATE_IDLE:
                 time.sleep(0.1)
 
-            # restore the requested state 
-            self.axis.requested_state = state
+            # restore the previous state 
+            self.axis.requested_state = state_cache
             self._node_ref().get_logger().info(f'Calibrated {self._axis_name} OK.')
 
-        except Exception:        
-            self._node_ref().get_logger().fatal(str(Exception))
-            raise Exception('Calibrate Axis Raised Exception')
+        except Exception as error:        
+            self._node_ref().get_logger().fatal(error)
+            raise   # Exception('Calibrate Axis Raised Exception')
 
     # -----------------------------------------------------------
     
