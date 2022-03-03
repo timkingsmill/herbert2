@@ -1,3 +1,8 @@
+"""
+    This launch file executes all ROS nodes on the 
+    Raspberry Pi that drives IMU.
+"""
+
 from launch import LaunchDescription
 from launch_ros.actions import Node as NodeDescription
 

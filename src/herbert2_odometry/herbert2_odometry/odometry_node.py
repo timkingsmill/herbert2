@@ -55,12 +55,21 @@ class OdometryNode(Node):
             qos_profile = qos_profile_sensor_data
         )
 
+        self._joint_state_time = self.get_clock().now()
+
         self._imu_data_sub = self.create_subscription(
             ImuMessage,
             '/imu_data',
             self._imu_data_callback,
             qos_profile = qos_profile_sensor_data
         )
+
+        self._imu_data_time = self.get_clock().now()
+        
+        # Initialise timers
+        self._check_subscribers_timer = self.create_timer(
+            1.0,  # unit: second
+            self._check_subscribers_timer_callback)
 
         # Initialize publishers
         self._odom_publisher = self.create_publisher(
@@ -85,13 +94,35 @@ class OdometryNode(Node):
     
     # ..............................................................
 
+    def _check_subscribers_timer_callback(self):
+        # Get the current time.
+        now = self.get_clock().now()
+
+        # Get the duration since the last IMU messoge was received.  
+        imu_delta = int((now - self._imu_data_time).nanoseconds / 1000000000)
+        # If the duration was more than 1 second the report that 
+        # the IMU subscriber is waiting to receive IMU messages 
+        if (imu_delta > 1):
+            self.get_logger().warn(f'Waiting to receive IMU messages. ({imu_delta -1} seconds)')
+
+        # Get the duration since the last JointState messoge was received.  
+        joint_state_delta = int((now - self._joint_state_time).nanoseconds / 1000000000)
+        # If the duration was more than 1 second the report that 
+        # the JointState subscriber is waiting to receive JointState messages 
+        if (joint_state_delta > 1):
+            self.get_logger().warn(f'Waiting to receive JointState messages. ({joint_state_delta -1} seconds)')
+
+    # ..............................................................
+
     def _imu_data_callback(self, imu_data_msg: ImuMessage):
+        self._imu_data_time = self.get_clock().now()
         if (self._connected):
             self._imu_data_queue.put(imu_data_msg)
  
     # ..............................................................
 
     def _joint_state_callback(self, joint_state_msg: JointStateMessage):
+        self._joint_state_time = self.get_clock().now()
         if (self._connected):
             self._joint_state_queue.put(joint_state_msg)
 
