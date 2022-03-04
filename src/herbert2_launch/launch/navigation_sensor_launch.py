@@ -10,9 +10,6 @@ from launch_ros.actions import Node as NodeDescription
 #from launch.launch_description_sources import PythonLaunchDescriptionSource
 #from launch.substitutions import ThisLaunchFileDir, LaunchConfiguration
 
-
-
-
 def generate_launch_description():
 
     ld = LaunchDescription()
@@ -27,6 +24,17 @@ def generate_launch_description():
         emulate_tty = True,
     )
     ld.add_action(imu_driver_node_description)
+
+    # ----------------------------------------------------------------
+    # Launch the Odometery ROS2 node. 
+    odometry_node_description = NodeDescription(
+        name = 'herbert2_odometry_node',
+        package = 'herbert2_odometry', 
+        executable = 'odometry', 
+        output = 'screen',
+        emulate_tty = True,
+    )
+    ld.add_action(odometry_node_description)
 
     # ----------------------------------------------------------------
 

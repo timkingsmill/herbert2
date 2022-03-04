@@ -34,7 +34,9 @@ class OdometryNode(Node):
         super().__init__(node_name = 'herbert2_odometry')
         self._connected = False
 
+        # Queue IMU messages
         self._imu_data_queue = queue.Queue()
+        # Queue Joint State messages
         self._joint_state_queue = queue.Queue()
 
         self._imu_yaw_offset: float = 0.0
@@ -48,22 +50,22 @@ class OdometryNode(Node):
 
         self._robot_pose = [0.0, 0.0, 0.0]
         
+        # Subscribe to Joint State messages
         self._joint_state_sub = self.create_subscription(
             JointStateMessage,
             '/joint_states',
             self._joint_state_callback,
             qos_profile = qos_profile_sensor_data
         )
-
         self._joint_state_time = self.get_clock().now()
 
+        # Subscribe to IMU messages
         self._imu_data_sub = self.create_subscription(
             ImuMessage,
             '/imu_data',
             self._imu_data_callback,
             qos_profile = qos_profile_sensor_data
         )
-
         self._imu_data_time = self.get_clock().now()
         
         # Initialise timers
@@ -75,10 +77,10 @@ class OdometryNode(Node):
         self._odom_publisher = self.create_publisher(
             OdometryMessage, 'odometry', qos_profile = qos_profile_sensor_data)
 
+        # Calculate and publish odometry data in a thread.
         self._exec_thread = threading.Thread(target = self._exec_update_odometry)
         self._exec_thread.daemon = False
         self._exec_thread.name = 'odometry-executer'
-
         self._connected = True
         self._exec_thread.start()
 
@@ -93,7 +95,7 @@ class OdometryNode(Node):
         self.get_logger().info('Destroyed the odometry node')
     
     # ..............................................................
-
+    # Check that the message subscribers are receiving messages.
     def _check_subscribers_timer_callback(self):
         # Get the current time.
         now = self.get_clock().now()
@@ -113,21 +115,21 @@ class OdometryNode(Node):
             self.get_logger().warn(f'Waiting to receive JointState messages. ({joint_state_delta -1} seconds)')
 
     # ..............................................................
-
+    # Queue incomming IMU messages.
     def _imu_data_callback(self, imu_data_msg: ImuMessage):
         self._imu_data_time = self.get_clock().now()
         if (self._connected):
             self._imu_data_queue.put(imu_data_msg)
  
     # ..............................................................
-
+    # Queue incomming Joint State messages.
     def _joint_state_callback(self, joint_state_msg: JointStateMessage):
         self._joint_state_time = self.get_clock().now()
         if (self._connected):
             self._joint_state_queue.put(joint_state_msg)
 
     # ..............................................................
-
+    # Thread procedure 
     def _exec_update_odometry(self) -> None:
         while (self._connected):
             joint_state_msg: JointStateMessage = self._get_joint_state_msg()
@@ -151,7 +153,7 @@ class OdometryNode(Node):
                 sleep(0.010)  # 100 Hz
 
     # ..............................................................
-
+    # Get Joint State messages from the queue.
     def _get_joint_state_msg(self) -> JointStateMessage:
         if (not self._joint_state_queue.empty()):
             joint_state_msg: JointStateMessage = self._joint_state_queue.get()
@@ -160,7 +162,7 @@ class OdometryNode(Node):
             return None
 
     # ..............................................................
-
+    # Get IMU data messages from the queue.
     def _get_imu_data_msg(self) -> ImuMessage:
         if (not self._imu_data_queue.empty()):
             imu_data_msg: ImuMessage = self._imu_data_queue.get()
@@ -187,7 +189,7 @@ class OdometryNode(Node):
         b_pos: float = self._last_joint_positions[1]
         c_pos: float = self._last_joint_positions[2]
 
-                # Convert the a, b and c motor position vectors to X and Y robot positions.
+        # Convert the a, b and c motor position vectors to X and Y robot positions.
         robot_pos = get_robot_position_from_wheel_position(a_pos, b_pos, c_pos)
         #self.get_logger().info(f'Robot Location X = {robot_pos[0]:.3f}  Y = {robot_pos[1]:.3f}')
 

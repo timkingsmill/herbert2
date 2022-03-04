@@ -108,22 +108,32 @@ class IMUDriverNode(Node):
     def __init__(self) -> None:
         super().__init__('herbert2_imu_driver')
         
+        # Create an IMU data publisher
         self._imu_publisher = self.create_publisher(Imu, 'imu_data', qos_profile = qos_profile_sensor_data)
 
+        # Connevt and open the IMU's serial port. 
         self._serial = serial.Serial(port = '/dev/ttyACM0', baudrate = 115200, timeout = 10, rtscts = False)
+
+        # Create a thread to read data from the serial port.
         self._connectionThread = serial.threaded.ReaderThread(self._serial, IMUReader)
         self._connectionThread.start()
-        self._connectionThread.protocol.set_parser(self.parse)
+
+        # Set a function to parse data read from the serial port. 
+        self._connectionThread.protocol.set_parser(self._parse)
+
+    # -----------------------------------------------------
 
     def destroy_node(self) -> bool:
         self._connectionThread.close()
         super().destroy_node()
-    
-    def parse(self, line: str):
+
+    # -----------------------------------------------------
+
+    def _parse(self, line: str):
         if (line.startswith('log:')):
             self.get_logger().error(line)
         else:
-            self.get_logger().info(line)
+            #self.get_logger().info(line)
             try:
                 quat = json.loads(line)
                 qw = quat['quat_w']
@@ -154,5 +164,7 @@ class IMUDriverNode(Node):
                 self.get_logger().error(f'Failed to parse a message from the IMU device: {str(exeption)}')
                 self.get_logger().error(line)
 
+    # -----------------------------------------------------
+    # -----------------------------------------------------
                 
         
