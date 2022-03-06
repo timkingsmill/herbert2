@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'odometry = herbert2_odometry.odometry:main'
+            'odometry_publisher = herbert2_odometry.odometry_publisher:main',
+            'odometry_logger = herbert2_odometry.odometry_logger:main',
         ],
     },
 )

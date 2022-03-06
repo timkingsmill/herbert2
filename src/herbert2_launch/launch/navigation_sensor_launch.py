@@ -26,17 +26,33 @@ def generate_launch_description():
     ld.add_action(imu_driver_node_description)
 
     # ----------------------------------------------------------------
-    # Launch the Odometery ROS2 node. 
-    odometry_node_description = NodeDescription(
-        name = 'herbert2_odometry_node',
+    # Launch the Odometery Publisher ROS2 node. 
+    odometry_publisher_description = NodeDescription(
+        name = 'herbert2_odometry_publisher',
         package = 'herbert2_odometry', 
-        executable = 'odometry', 
+        executable = 'odometry_publisher', 
         output = 'screen',
         emulate_tty = True,
+        #arguments=['--ros-args', '--log-level', 'debug']
     )
-    ld.add_action(odometry_node_description)
+    ld.add_action(odometry_publisher_description)
 
     # ----------------------------------------------------------------
+    # Launch the Odometery Logger ROS2 node. 
+    odometry_logger_description = NodeDescription(
+        name = 'herbert2_odometry_logger',
+        package = 'herbert2_odometry', 
+        executable = 'odometry_logger', 
+        output = 'screen',
+        emulate_tty = True,
+        #arguments=['--ros-args', '--log-level', 'debug']
+    )
+    ld.add_action(odometry_logger_description)
+
+    # ----------------------------------------------------------------
+
+
+
 
     return ld
 

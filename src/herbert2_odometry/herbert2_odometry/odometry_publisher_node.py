@@ -75,10 +75,10 @@ class OdometryNode(Node):
 
         # Initialize publishers
         self._odom_publisher = self.create_publisher(
-            OdometryMessage, 'odometry', qos_profile = qos_profile_sensor_data)
+            OdometryMessage, '/odometry', qos_profile = qos_profile_sensor_data)
 
         # Calculate and publish odometry data in a thread.
-        self._exec_thread = threading.Thread(target = self._exec_update_odometry)
+        self._exec_thread = threading.Thread(target = self._update_odometry_thread_proc)
         self._exec_thread.daemon = False
         self._exec_thread.name = 'odometry-executer'
         self._connected = True
@@ -130,11 +130,13 @@ class OdometryNode(Node):
 
     # ..............................................................
     # Thread procedure 
-    def _exec_update_odometry(self) -> None:
+    def _update_odometry_thread_proc(self) -> None:
         while (self._connected):
+            # Retrive queued messages.
             joint_state_msg: JointStateMessage = self._get_joint_state_msg()
             imu_data_msg: ImuMessage = self._get_imu_data_msg()
 
+            # Test that retrived message types are correct.
             if (isinstance(joint_state_msg, JointStateMessage) & isinstance(imu_data_msg, ImuMessage)): 
                 
                 imu_nano: int = imu_data_msg.header.stamp.nanosec
@@ -142,10 +144,10 @@ class OdometryNode(Node):
                 nano_nano_secs: float = abs(imu_nano - joint_state_nano) / 1000000000.0
 
                 if (nano_nano_secs < 1.0):
-                    if (self._update_imu(imu_data_msg)):
-                        #self.get_logger().info(str(nano_nano_secs))
-                        if (self._update_joint_state(joint_state_msg)):
+                    if (self._get_imu_data_from_msg(imu_data_msg)):
+                        if (self._get_joint_state_data_from_msg(joint_state_msg)):
                             #self.get_logger().info(f'Yaw: {self._imu_yaw:.3f}  Offset: {self._imu_yaw_offset:.3f}')
+                            
                             self._calculate_odometry(0)
                             self._publish_odometry()
 
@@ -240,7 +242,7 @@ class OdometryNode(Node):
 
     # ..............................................................
 
-    def _update_joint_state(self, joint_state_msg: JointStateMessage) -> bool:
+    def _get_joint_state_data_from_msg(self, joint_state_msg: JointStateMessage) -> bool:
         """
         Update the relative joint positions.
         Calculate the differential or new position relative to the last or previous position.
@@ -268,7 +270,7 @@ class OdometryNode(Node):
 
     # ..............................................................
 
-    def _update_imu(self, imu_msg: ImuMessage) -> bool:
+    def _get_imu_data_from_msg(self, imu_msg: ImuMessage) -> bool:
         """
             Update the yaw in degrees. (-180.0 .. 180.0 degrees)
             Positive yaw is an anti-clockwise rotation of the robot.
@@ -296,6 +298,8 @@ class OdometryNode(Node):
                 self._imu_yaw = self._imu_yaw - 360.0
             elif (self._imu_yaw < -180.0):
                 self._imu_yaw = self._imu_yaw + 360.0
+
+            ##self.get_logger().info(f"Yaw: {self._imu_yaw} (deg)")
 
             return True
 

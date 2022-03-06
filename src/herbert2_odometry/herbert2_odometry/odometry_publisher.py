@@ -1,5 +1,5 @@
 import rclpy.executors
-from .odometry_node import OdometryNode
+from .odometry_publisher_node import OdometryNode
 
 #...............................................................
 
