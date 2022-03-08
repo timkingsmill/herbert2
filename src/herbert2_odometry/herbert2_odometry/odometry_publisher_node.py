@@ -46,7 +46,7 @@ class OdometryNode(Node):
         self._diff_joint_positions = [0.0, 0.0, 0.0]
 
         # Cache the most recent positions of the joints / motors.
-        self._last_joint_positions = [0.0, 0.0, 0.0]
+        self._absolute_joint_positions = [0.0, 0.0, 0.0]
 
         self._robot_pose = [0.0, 0.0, 0.0]
         
@@ -187,9 +187,9 @@ class OdometryNode(Node):
                 -Y: Left
         """
         # Cache the position of each wheel in units of linear meters. 
-        a_pos: float = self._last_joint_positions[0]
-        b_pos: float = self._last_joint_positions[1]
-        c_pos: float = self._last_joint_positions[2]
+        a_pos: float = self._absolute_joint_positions[0]
+        b_pos: float = self._absolute_joint_positions[1]
+        c_pos: float = self._absolute_joint_positions[2]
 
         # Convert the a, b and c motor position vectors to X and Y robot positions.
         robot_pos = get_robot_position_from_wheel_position(a_pos, b_pos, c_pos)
@@ -212,6 +212,12 @@ class OdometryNode(Node):
         odometry_msg.header.stamp = time_stamp
         odometry_msg.child_frame_id = 'footprint_link'
 
+        # Publish the raw omni wheel positions.
+        odometry_msg.twist.twist.linear.x = self._absolute_joint_positions[0]
+        odometry_msg.twist.twist.linear.y = self._absolute_joint_positions[1]
+        odometry_msg.twist.twist.linear.z = self._absolute_joint_positions[2]
+
+        # Publish the X and Y position of the robot in metres.
         odometry_msg.pose.pose.position.x = self._robot_pose[0]
         odometry_msg.pose.pose.position.y = self._robot_pose[1]
         odometry_msg.pose.pose.position.z = 0.0   
@@ -255,14 +261,14 @@ class OdometryNode(Node):
 
             # Update the relative joint position.
             # (The position change since recieving the previous joint positions )
-            self._diff_joint_positions[0] = a_pos - self._last_joint_positions[0]
-            self._diff_joint_positions[1] = b_pos - self._last_joint_positions[1]
-            self._diff_joint_positions[2] = c_pos - self._last_joint_positions[2]
+            self._diff_joint_positions[0] = a_pos - self._absolute_joint_positions[0]
+            self._diff_joint_positions[1] = b_pos - self._absolute_joint_positions[1]
+            self._diff_joint_positions[2] = c_pos - self._absolute_joint_positions[2]
 
             # Cache the current position of each wheel with the current joint positions.
-            self._last_joint_positions[0] = a_pos
-            self._last_joint_positions[1] = b_pos
-            self._last_joint_positions[2] = c_pos
+            self._absolute_joint_positions[0] = a_pos
+            self._absolute_joint_positions[1] = b_pos
+            self._absolute_joint_positions[2] = c_pos
 
             return True
         else:
