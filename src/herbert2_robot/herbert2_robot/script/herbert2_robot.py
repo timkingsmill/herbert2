@@ -33,8 +33,8 @@ class Herbert2Robot(Node):
         self._odrive_driver = ODriveDriver(self)
         
         # Calibrate the driver
-        self._odrive_driver.calibrate()
-        self._odrive_driver.enter_velocity_control()
+        #self._odrive_driver.calibrate()
+        #self._odrive_driver.enter_velocity_control()
 
         # Init odometry
         #self._odrive_controller = DiffODriveController(self)
@@ -68,15 +68,6 @@ class Herbert2Robot(Node):
             #IMUSensor(self),
         ]
     
-    # -----------------------------------------------------------
-
-    """
-    def _update_timer_callback(self) -> None:
-        if (self._initialized):
-            for sensor in self._sensors:
-                sensor.update()
-    """
-
     # -----------------------------------------------------------
 
     def _update_thread_proc(self) -> None:
