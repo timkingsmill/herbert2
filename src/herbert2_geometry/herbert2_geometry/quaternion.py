@@ -58,7 +58,7 @@ class Quaternion():
 
     def get_yaw(self, use_degrees = False) -> float:
         """
-            Calculate yaw (z-axis rotation)
+            Calculate yaw (rotation around the z-axis)
             Range is -180.0 .. +180.0
             Positive yaw is an anti-clockwise rotation of the robot.
             Negative yaw is a clockwise rotation of the robot

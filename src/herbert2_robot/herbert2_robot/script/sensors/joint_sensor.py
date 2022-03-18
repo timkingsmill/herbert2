@@ -39,7 +39,6 @@ class JointSensors(Sensor):
         msg.name.append('motor_c_joint')
         msg.position.append(pos[2])
 
-
         self._publish(msg)
 
     # ----------------------------------------------------------

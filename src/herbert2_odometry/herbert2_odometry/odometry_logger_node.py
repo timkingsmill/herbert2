@@ -16,6 +16,8 @@ class OdometryLoggerNode(Node):
         """ Herbert2 Odometry Logger Node """
         super().__init__(node_name = 'herbert2_odometry_logger')
 
+        self._msg_count = 0
+
         # Subscribe to Joint State messages
         self._odometry_sub = self.create_subscription(
             OdometryMessage,
@@ -47,23 +49,29 @@ class OdometryLoggerNode(Node):
     def _odometry_subscriber_callback(self, odometry_msg: OdometryMessage):
         # Update the time stamp.
         self._odometry_received_timestamp = self.get_clock().now()
-        # Get orientation quaternion
-        quat = Quaternion.from_msg(odometry_msg.pose.pose.orientation)
-
-        # Get the robots yaw in degrees
-        yaw = quat.get_yaw(True)
-
-        # Get the coordinate position of the robot.
-        x_position = odometry_msg.pose.pose.position.x
-        y_position = odometry_msg.pose.pose.position.y
-
-        # Get the abslute positions of each omni-wheel.
-        a_position = odometry_msg.twist.twist.linear.x
-        b_position = odometry_msg.twist.twist.linear.y
-        c_position = odometry_msg.twist.twist.linear.z
         
-        self.get_logger().info("Odometry:")
-        self.get_logger().info(f"    Wheel A: {a_position:.3f} Wheel B: {b_position:.3f} Wheel C: {c_position:.3f}")
-        self.get_logger().info(f"    Yaw: {yaw:.3f} (deg) X: {x_position:.3f} Y: {y_position:.3f}")
+        # slow down the log output.
+        self._msg_count = self._msg_count + 1
+        if (self._msg_count > 20):
+            self._msg_count = 0
+
+            # Get orientation quaternion
+            quat = Quaternion.from_msg(odometry_msg.pose.pose.orientation)
+
+            # Get the robots yaw in degrees
+            yaw = quat.get_yaw(True)
+
+            # Get the coordinate position of the robot.
+            x_position = odometry_msg.pose.pose.position.x
+            y_position = odometry_msg.pose.pose.position.y
+
+            # Get the abslute positions of each omni-wheel.
+            a_position = odometry_msg.twist.twist.linear.x
+            b_position = odometry_msg.twist.twist.linear.y
+            c_position = odometry_msg.twist.twist.linear.z
+            
+            #self.get_logger().info("Odometry:")
+            #self.get_logger().info(f"    Wheel A: {a_position:.3f} Wheel B: {b_position:.3f} Wheel C: {c_position:.3f}")
+            #self.get_logger().info(f"    Yaw: {yaw:.3f} (deg) X: {x_position:.3f} Y: {y_position:.3f}")
 
     #...............................................................
