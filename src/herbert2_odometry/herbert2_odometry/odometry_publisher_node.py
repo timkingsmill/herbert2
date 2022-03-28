@@ -1,18 +1,19 @@
+from cmath import pi
 import threading
 import queue
+import math
 from time import sleep
 
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 
-from geometry_msgs.msg import Twist, TransformStamped
+from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry as OdometryMessage
 from sensor_msgs.msg import Imu as ImuMessage
 from sensor_msgs.msg import JointState as JointStateMessage
 
 from herbert2_geometry import Quaternion
-from herbert2_geometry.robot_maths import get_robot_position_from_wheel_position
 
 # .............................................................................
 
@@ -38,7 +39,6 @@ class OdometryNode(Node):
         self._imu_data_queue = queue.Queue()
         # Queue Joint State messages
         self._joint_state_queue = queue.Queue()
-
         
         self._imu_yaw_raw: float = 0.0 
         self._imu_yaw_offset: float = 0.0
@@ -80,20 +80,22 @@ class OdometryNode(Node):
         self._odom_publisher = self.create_publisher(
             OdometryMessage, '/odometry', qos_profile = qos_profile_sensor_data)
 
+        from tf2_ros import TransformBroadcaster
+        self._tf_broadcaster = TransformBroadcaster(self)
+
+
         # Calculate and publish odometry data in a thread.
         self._exec_thread = threading.Thread(target = self._update_odometry_thread_proc)
         self._exec_thread.daemon = False
         self._exec_thread.name = 'odometry-executer'
         self._connected = True
         self._exec_thread.start()
-
         self.get_logger().info('Odometry node constructor OK')
 
     # ..............................................................
 
     def destroy_node(self):
         self._connected = False
-
         super().destroy_node()
         self.get_logger().info('Destroyed the odometry node')
     
@@ -141,19 +143,14 @@ class OdometryNode(Node):
 
             # Test that retrived message types are correct.
             if (isinstance(joint_state_msg, JointStateMessage) & isinstance(imu_data_msg, ImuMessage)): 
-                
                 imu_nano: int = imu_data_msg.header.stamp.nanosec
                 joint_state_nano: int = joint_state_msg.header.stamp.nanosec
                 nano_nano_secs: float = abs(imu_nano - joint_state_nano) / 1000000000.0
-
                 if (nano_nano_secs < 1.0):
-                    if (self._get_joint_state_data_from_msg(joint_state_msg)):
-                        if (self._get_imu_data_from_msg(imu_data_msg)):
-                            #self.get_logger().info(f'Yaw: {self._imu_yaw:.3f}  Offset: {self._imu_yaw_offset:.3f}')
-                            
+                    if (self._parse_imu_msg(imu_data_msg)):
+                        if (self._parse_joint_state_msg(joint_state_msg)):
                             self._calculate_odometry(0)
                             self._publish_odometry()
-
             else:
                 sleep(0.010)  # 100 Hz
 
@@ -180,7 +177,6 @@ class OdometryNode(Node):
     def _calculate_odometry(self, duration: Duration):
         """
             parm duration in nanoseconds.
-
             Convert the a, b and c motor position vectors to X and Y robot positions.
 
             Polar Robot Movement:
@@ -189,62 +185,110 @@ class OdometryNode(Node):
                 +Y: Right
                 -Y: Left
         """
+
         # Cache the position of each wheel in units of linear meters. 
         a_pos: float = self._absolute_wheel_positions[0]
         b_pos: float = self._absolute_wheel_positions[1]
         c_pos: float = self._absolute_wheel_positions[2]
 
-        ###### TESTING
-        
-        import math
-
         forward = ((math.sqrt(3) * a_pos) - (math.sqrt(3) * c_pos)) / 3.0
         right = ((2 * b_pos) - a_pos - c_pos) / 3.0
             
-        radians = (a_pos + b_pos + c_pos) / (3.0 * 0.146)
-        degrees = ((radians * (180.0 / 3.14159)) % 360) - 180.0
+        # Radius of the robot = 0.145
+        # radians = 0 .. 2pi
+        #radians = (a_pos + b_pos + c_pos) / (3.0 * pi * 0.145)
+        #radius = 0.145 # too small
+        radius = 0.1458
+        radians = (a_pos + b_pos + c_pos) / (3.0 * radius)
 
-                # slow down the log output.
+        # yaw = -180 .. 180
+        robot_yaw = 180.0 - (math.degrees(radians) % 360.0)
+
+        # Calculate the IMU sensor YAW 
+        # Scale the raw yaw to 0 .. 360.0
+        self._imu_yaw_raw = self._imu_yaw_raw % 360.0
+        # Calculate adjusted Yaw. (-180 .. 180) Robot forward = 0.0 yaw. 
+        self._imu_yaw = ((self._imu_yaw_raw + self._imu_yaw_offset) % 360.0) - 180.0
+
+        """
+        # slow down the log output.
         self._debug_output_counter = self._debug_output_counter + 1
         if (self._debug_output_counter > 40):
             self._debug_output_counter = 0
-
             self.get_logger().info(f'Motor Odometry:')
             #self.get_logger().info(f'    Position:')
             #self.get_logger().info(f'        A: {a_pos:.3f} B: {b_pos:.3f}  C: {c_pos:.3f}') 
-
             self.get_logger().info(f'    Robot Frame:')
-            #self.get_logger().info(f'        Theta: {degrees:.3f} X: {forward:.3f} Y: {right:.3f}') 
-            self.get_logger().info(f'        Robot Yaw {degrees:.3f} IMU Yaw: {self._imu_yaw:.3f}') 
-
-            #self.get_logger().info(f'    IMU Data:')
-            #self.get_logger().info(f'        Adjusted Yaw: {self._imu_yaw:.3f} IMU Raw Yaw: {self._imu_yaw_raw:.3f} (deg) Yaw Offset: {self._imu_yaw_offset:.3f} (deg)') 
-            #self.get_logger().info(f'        Adjusted Yaw: {self._imu_yaw:.3f} IMU Raw Yaw: {self._imu_yaw_raw:.3f} (deg) Yaw Offset: {self._imu_yaw_offset:.3f} (deg)') 
+            self.get_logger().warn(f'        IMU Yaw:           {self._imu_yaw:.3f}') 
+            self.get_logger().warn(f'        Robot Yaw:         {robot_yaw:.3f}') 
+            #self.get_logger().info('')
+            #self.get_logger().warn(f'        Measured Offset:   {(self._imu_yaw - robot_yaw):.3f}') 
             self.get_logger().info('')
-
-            ####################
-
         """
-        # Convert the a, b and c motor position vectors to X and Y robot positions.
-        robot_pos = get_robot_position_from_wheel_position(a_pos, b_pos, c_pos)
+
         #self.get_logger().info(f'Robot Location X = {robot_pos[0]:.3f}  Y = {robot_pos[1]:.3f}')
-        """
 
-        #self._robot_pose[0] = robot_pos[0]  
-        #self._robot_pose[1] = robot_pos[1]  
-        #self._robot_pose[2] = self._imu_yaw
+        self._robot_pose[0] = forward  
+        self._robot_pose[1] = right  
+        self._robot_pose[2] = self._imu_yaw
+
+        ##self.get_logger().info(f'Robot Pose = {self._robot_pose}')
 
     # ..............................................................
 
-    """
-    def _angle_to_vector(self, theta, magnitude):
-        # theta relative to the forward vector.
-        import math
-        vx = math.sin(theta) * magnitude
-        # calculate y-component of the direction vector (right / left )
-        vy = math.cos(theta) * magnitude
-        return [vx, vy]
-    """    
+    def _parse_joint_state_msg(self, joint_state_msg: JointStateMessage) -> bool:
+        """
+        Update the relative joint positions.
+        Calculate the differential or new position relative to the last or previous position.
+        """
+        if (self._imu_yaw_offset_initialized == True):
+            # Cache the current position of each wheel.
+            # Message data - 1.0 = 360 degrees.
+            ###### Convert message data to linear meters. 3.141 rotations per metre.
+            a_pos = joint_state_msg.position[0] / 3.141
+            b_pos = joint_state_msg.position[1] / 3.141
+            c_pos = joint_state_msg.position[2] / 3.141
+
+            # Update the relative joint position.
+            # (The position change since recieving the previous wheel positions )
+            self._diff_joint_positions[0] = a_pos - self._absolute_wheel_positions[0]
+            self._diff_joint_positions[1] = b_pos - self._absolute_wheel_positions[1]
+            self._diff_joint_positions[2] = c_pos - self._absolute_wheel_positions[2]
+
+            # Cache the current position of each wheel with the current joint or wheel positions.
+            self._absolute_wheel_positions[0] = a_pos
+            self._absolute_wheel_positions[1] = b_pos
+            self._absolute_wheel_positions[2] = c_pos
+
+            return True
+        else:
+            return False
+
+    # ..............................................................
+
+    def _parse_imu_msg(self, imu_msg: ImuMessage) -> bool:
+        """
+            Update the yaw in degrees. (-180.0 .. 180.0 degrees)
+            Positive yaw is an anti-clockwise rotation of the robot.
+            Negative yaw is a clockwise rotation of the robot
+        """
+        quaternion: Quaternion = Quaternion.from_msg(imu_msg.orientation)
+        if not (quaternion.is_valid()):
+            return False
+        
+        if (self._imu_yaw_offset_initialized == False):
+            # Update the yaw offset from : Yaw = -180.0 .. 180.0 degrees
+            # to : Yaw = 0.0 .. 360.0 degrees
+            self._imu_yaw_offset = -1 * quaternion.get_yaw(True)
+            self._imu_yaw_offset_initialized = True
+            return False
+        else:
+            # Yaw offset is initialized
+            # quaternion yaw in degrees. (-180.0 .. 180.0 degrees)
+            # Anti clockwise = positive yaw. Clockwise = negative yaw.
+            # Scale raw yaw to : 0 .. 360.
+            self._imu_yaw_raw : float = quaternion.get_yaw(True)
+            return True
 
     # ..............................................................
 
@@ -289,66 +333,17 @@ class OdometryNode(Node):
         odometry_tf_msg.header.stamp = time_stamp
         odometry_tf_msg.child_frame_id = 'footprint_link'
 
+        odometry_tf_msg.transform.translation.x = odometry_msg.pose.pose.position.x
+        odometry_tf_msg.transform.translation.y = odometry_msg.pose.pose.position.y
+        odometry_tf_msg.transform.translation.z = odometry_msg.pose.pose.position.z
+        odometry_tf_msg.transform.rotation = odometry_msg.pose.pose.orientation
+
         # ------------------------------------------
-        # Publish and broadcast odometry.
-        #self._tf_broadcaster.sendTransform(odometry_tf)
+        # Publish and broadcast odometry transform.
+        self._tf_broadcaster.sendTransform(odometry_tf_msg)
 
     # ..............................................................
 
-    def _get_joint_state_data_from_msg(self, joint_state_msg: JointStateMessage) -> bool:
-        """
-        Update the relative joint positions.
-        Calculate the differential or new position relative to the last or previous position.
-        """
-        if (self._imu_yaw_offset_initialized == True):
-            # Cache the current position of each wheel.
-            # Message data - 1.0 = 360 degrees.
-            # Convert message data to linear meters. 3.141 rotations per metre.
-            a_pos = joint_state_msg.position[0] / 3.141
-            b_pos = joint_state_msg.position[1] / 3.141
-            c_pos = joint_state_msg.position[2] / 3.141
-
-            # Update the relative joint position.
-            # (The position change since recieving the previous wheel positions )
-            self._diff_joint_positions[0] = a_pos - self._absolute_wheel_positions[0]
-            self._diff_joint_positions[1] = b_pos - self._absolute_wheel_positions[1]
-            self._diff_joint_positions[2] = c_pos - self._absolute_wheel_positions[2]
-
-            # Cache the current position of each wheel with the current joint or wheel positions.
-            self._absolute_wheel_positions[0] = a_pos
-            self._absolute_wheel_positions[1] = b_pos
-            self._absolute_wheel_positions[2] = c_pos
-
-            return True
-        else:
-            return False
-
-    # ..............................................................
-
-    def _get_imu_data_from_msg(self, imu_msg: ImuMessage) -> bool:
-        """
-            Update the yaw in degrees. (-180.0 .. 180.0 degrees)
-            Positive yaw is an anti-clockwise rotation of the robot.
-            Negative yaw is a clockwise rotation of the robot
-        """
-        quaternion: Quaternion = Quaternion.from_msg(imu_msg.orientation)
-        if not (quaternion.is_valid()):
-            return False
-        
-        if (self._imu_yaw_offset_initialized == False):
-            # Update the yaw offset (Yaw = -180.0 .. 180.0 degrees)
-            self._imu_yaw_offset = quaternion.get_yaw(True) 
-            self._imu_yaw_offset_initialized = True
-            return False
-        else:
-            # Yaw offset is initialized
-            # get the yaw in degrees. (-180.0 .. 180.0 degrees)
-            # Anti clockwise = positive yaw.
-            # Clockwise = negative yaw
-            self._imu_yaw_raw : float = quaternion.get_yaw(True) + 180.0
-            # apply the yaw offset.
-            self._imu_yaw = ((self._imu_yaw_raw + self._imu_yaw_offset) % 360) - 180.0
-            return True
 
     # ..............................................................
     # ..............................................................

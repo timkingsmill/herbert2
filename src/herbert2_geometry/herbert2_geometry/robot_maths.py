@@ -7,36 +7,6 @@ HALF_SQRT_3 = math.sqrt(3) / 2.0
 
 # --------------------------------------------------------------------
 
-def get_robot_position_from_wheel_position(a: float, b: float, c: float):
-    """
-    Given the a, b ad c wheel positions calculate
-    the robot's x and y position.
-
-    Robot Movement:
-        +X: Forward
-        -X: Reverse 
-        +Y: Right
-        -Y: Left
-
-    """
-
-    # Angle of wheel positions in radians.
-    thetaA = math.radians( 60.0)   #60.0)
-    thetaB = math.radians(180.0)   #0.0)
-    thetaC = math.radians(300.0)   #-60.0)
-
-    aX, aY = angle_to_vector(thetaA, a)
-    bX, bY = angle_to_vector(thetaB, b)
-    cX, cY = angle_to_vector(thetaC, c)
-
-    # Add the x and y components of motor A, B and C
-    x = (aX + bX + cX) / 3.0
-    y = (aY + bY + cY) / 3.0
-
-    return x, y
-
-# --------------------------------------------------------------------
-
 def wheel_velocity_from_vector(x, y):
     y = -y
     # calculate angle of the direction vector. (radians) 

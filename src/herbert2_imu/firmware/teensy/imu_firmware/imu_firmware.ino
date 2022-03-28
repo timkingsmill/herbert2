@@ -24,6 +24,7 @@
  * Distributed as-is; no warranty is given.
  ***************************************************************/
 
+//#include <math.h>
 #include "ICM_20948.h" // Click here to get the library: http://librarymanager/All#SparkFun_ICM_20948_IMU
 
 #define SERIAL_PORT Serial
@@ -45,6 +46,8 @@ class Quaternion
         {
             //q0 = q0; 
         }
+
+        // ----------------------------------------------------------------------------
 
         double q0() {return _q0;}   // W
         double q1() {return _q1;}   // X
@@ -68,11 +71,25 @@ class Quaternion
 
         // ----------------------------------------------------------------------------
 
-        double Yaw()
+        double wrapAngle(double angle)
+        {
+            double twoPi = TWO_PI;
+            return angle - twoPi * floor(angle / twoPi);
+        }
+        
+        // ----------------------------------------------------------------------------
+
+        double yaw(bool degrees = false)
         {
             double siny_cosp =       2.0 * ((_q0 * _q3) + (_q1 * _q2));
             double cosy_cosp = 1.0 - 2.0 * ((_q2 * _q2) + (_q3 * _q3));
-            return atan2(siny_cosp, cosy_cosp);
+            double result = atan2(siny_cosp, cosy_cosp);
+            result = wrapAngle(result);
+            if (degrees)
+            {
+               result = result * rad2deg;
+            }
+            return result;
         }
 
         // ----------------------------------------------------------------------------
@@ -82,6 +99,10 @@ class Quaternion
         const double _q1;
         const double _q2;
         const double _q3;
+
+        const double rad2deg = RAD_TO_DEG;
+        const double deg2rad = DEG_TO_RAD;
+                
 };
 
 // -----------------------------------------------------------------------------------
@@ -99,7 +120,7 @@ void write_quat(Quaternion &quat)
     // Output the Quaternion data in the format expected by ZaneL's Node.js Quaternion animation tool
     // Output as JSON
 
-    size_t resolution = 3;
+    size_t resolution = 9;
   
     SERIAL_PORT.print(F("{\"quat_w\":"));
     SERIAL_PORT.print(quat.q0(), resolution);
@@ -112,7 +133,10 @@ void write_quat(Quaternion &quat)
         
     SERIAL_PORT.print(F(", \"quat_z\":"));
     SERIAL_PORT.print(quat.q3(), resolution);
-        
+
+    SERIAL_PORT.print(F(", \"yaw\":"));
+    SERIAL_PORT.print(quat.yaw(true), resolution);
+
     SERIAL_PORT.println(F("}"));
 
 }
@@ -177,8 +201,12 @@ void setup()
     //    INV_ICM20948_SENSOR_ORIENTATION                 (32-bit 9-axis quaternion + heading accuracy)
 
     // Enable the DMP orientation sensor
-    success &= (myICM.enableDMPSensor(INV_ICM20948_SENSOR_ORIENTATION) == ICM_20948_Stat_Ok);
+    // TEST  success &= (myICM.enableDMPSensor(INV_ICM20948_SENSOR_ORIENTATION) == ICM_20948_Stat_Ok);
 
+    success &= (myICM.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) == ICM_20948_Stat_Ok);
+    // ====
+
+    
     // Enable any additional sensors / features
     //success &= (myICM.enableDMPSensor(INV_ICM20948_SENSOR_RAW_GYROSCOPE) == ICM_20948_Stat_Ok);
     //success &= (myICM.enableDMPSensor(INV_ICM20948_SENSOR_RAW_ACCELEROMETER) == ICM_20948_Stat_Ok);
@@ -190,7 +218,10 @@ void setup()
     // Value = (DMP running rate / ODR ) - 1
     // E.g. For a 5Hz ODR rate when DMP is running at 55Hz, value = (55/5) - 1 = 10.
     
-    success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Quat9, 0) == ICM_20948_Stat_Ok); // Set to the maximum
+    //success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Quat9, 0) == ICM_20948_Stat_Ok); // Set to the maximum
+    success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Quat6, 0) == ICM_20948_Stat_Ok); // Set to the maximum
+
+            
     //success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Quat9, 1) == ICM_20948_Stat_Ok); // Set to the maximum
     
     //success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Accel, 0) == ICM_20948_Stat_Ok); // Set to the maximum
@@ -249,12 +280,20 @@ void loop()
 
     if ((myICM.status == ICM_20948_Stat_Ok) || (myICM.status == ICM_20948_Stat_FIFOMoreDataAvail))
     {
-        if (data.header == DMP_header_bitmap_Quat9) // We have asked for orientation data so we should receive Quat9
+        //if (data.header == DMP_header_bitmap_Quat9) // We have asked for orientation data so we should receive Quat9
+        if (data.header == DMP_header_bitmap_Quat6) // We have asked for orientation data so we should receive Quat9
         {
             // Scale to +/- 1
-            double q1 = ((double)data.Quat9.Data.Q1) / 1073741824.0; // Convert to double. Divide by 2^30
-            double q2 = ((double)data.Quat9.Data.Q2) / 1073741824.0; // Convert to double. Divide by 2^30
-            double q3 = ((double)data.Quat9.Data.Q3) / 1073741824.0; // Convert to double. Divide by 2^30
+
+            //double q1 = (int32_t)data.Quat9.Data.Q1 / 1073741824.0; // Convert to double. Divide by 2^30
+            //double q2 = (int32_t)data.Quat9.Data.Q2 / 1073741824.0; // Convert to double. Divide by 2^30
+            //double q3 = (int32_t)data.Quat9.Data.Q3 / 1073741824.0; // Convert to double. Divide by 2^30
+
+            double q1 = (int32_t)data.Quat6.Data.Q1 / 1073741824.0; // Convert to double. Divide by 2^30
+            double q2 = (int32_t)data.Quat6.Data.Q2 / 1073741824.0; // Convert to double. Divide by 2^30
+            double q3 = (int32_t)data.Quat6.Data.Q3 / 1073741824.0; // Convert to double. Divide by 2^30
+
+            //int16_t accuracy = data.Quat9.Data.Accuracy;
 
             double q0_squared = 1.0 - ((q1 * q1) + (q2 * q2) + (q3 * q3));
             if (q0_squared > 0.0)
@@ -273,7 +312,30 @@ void loop()
                 {
                     log("IMU firmware error. Invalid quaternion data.");
                 }
-            }    
+
+                /*
+                
+                SERIAL_PORT.print(F("Yaw:   "));
+                SERIAL_PORT.print(quaternion.yaw(false), 3);
+                
+                SERIAL_PORT.print("     ");
+                SERIAL_PORT.print(quaternion.yaw(true), 3);
+                
+                //SERIAL_PORT.print("     ");
+                //SERIAL_PORT.print(accuracy);
+
+                //SERIAL_PORT.print("  ERROR:   ");
+                //SERIAL_PORT.print(quaternion.yaw(false) - quat2.yaw(false), 3);
+                
+                SERIAL_PORT.println("");
+                */
+            } 
+            else    
+            {
+                log("Error Calculating Q0");
+            }
+
+            
         }
     } 
 

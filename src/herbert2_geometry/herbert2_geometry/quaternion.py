@@ -1,6 +1,6 @@
 # -------------------------------------------------------------------------
 
-from math import sin, cos, atan2, pi, sqrt, asin, acos, fabs
+from math import degrees, sin, cos, atan2, pi, sqrt, asin, acos, fabs
 import attr
 import geometry_msgs.msg
 
@@ -65,10 +65,10 @@ class Quaternion():
         """
         siny_cosp: float =       2.0 * ((self.w * self.z) + (self.x * self.y))
         cosy_cosp: float = 1.0 - 2.0 * ((self.y * self.y) + (self.z * self.z))
-        yaw: float = atan2(siny_cosp, cosy_cosp)
+        yaw_radians: float = atan2(siny_cosp, cosy_cosp)
 
         if use_degrees:
-            yaw *= rad2deg
+            yaw = degrees(yaw_radians)
 
         return yaw
 

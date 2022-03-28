@@ -70,8 +70,9 @@ class OdometryLoggerNode(Node):
             b_position = odometry_msg.twist.twist.linear.y
             c_position = odometry_msg.twist.twist.linear.z
             
-            #self.get_logger().info("Odometry:")
+            self.get_logger().info("Odometry:")
             #self.get_logger().info(f"    Wheel A: {a_position:.3f} Wheel B: {b_position:.3f} Wheel C: {c_position:.3f}")
-            #self.get_logger().info(f"    Yaw: {yaw:.3f} (deg) X: {x_position:.3f} Y: {y_position:.3f}")
+            self.get_logger().info(f"    Yaw: {yaw:.3f} (deg)     X: {x_position:.3f}     Y: {y_position:.3f}")
+            self.get_logger().info("")
 
     #...............................................................

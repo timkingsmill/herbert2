@@ -107,7 +107,9 @@ class IMUDriverNode(Node):
 
     def __init__(self) -> None:
         super().__init__('herbert2_imu_driver')
-        
+
+        self._msg_count = 0
+ 
         # Create an IMU data publisher
         self._imu_publisher = self.create_publisher(Imu, 'imu_data', qos_profile = qos_profile_sensor_data)
 
@@ -140,13 +142,16 @@ class IMUDriverNode(Node):
                 qx = quat['quat_x']
                 qy = quat['quat_y']
                 qz = quat['quat_z']
+                yaw_message = quat['yaw']
 
                 quaternion: Quaternion = Quaternion(qw, qx, qy, qz)
                 if (quaternion.is_valid()):
-                    yaw = quaternion.get_yaw(True)
+                    self._msg_count = self._msg_count + 1
 
-                    #self.get_logger().info(f'Yaw: {yaw:.6f}    Quat: {line}')
-                    #time.sleep(0.1)
+                    #if (self._msg_count % 40 == 0): 
+                    #    yaw_quat = quaternion.get_yaw(True)
+                    #    self.get_logger().info(f'IMU Driver:')
+                    #    self.get_logger().info(f'    YAW: {yaw_quat:.3f}')
 
                     imu_message = Imu()
                     imu_message.header.stamp = Clock().now().to_msg()
