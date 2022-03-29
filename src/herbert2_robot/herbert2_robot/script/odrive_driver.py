@@ -11,7 +11,9 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from geometry_msgs.msg import Twist
 
-from herbert2_geometry.robot_maths import wheel_velocity_from_vector
+from herbert2_odometry import kinematics 
+
+#from herbert2_geometry.robot_maths import wheel_velocity_from_vector
 
 # We want to use the fibre package that is included with the odrive package
 # in order to avoid any version mismatch issues,
@@ -245,11 +247,18 @@ class ODriveDriver(NodeDecorator):
 
         # Rotate the robot.
         angular_velocity: float = msg.angular.z 
+
+        x: float = msg.linear.x
+        y: float = msg.linear.y
+
         setpoints = [angular_velocity, angular_velocity, angular_velocity]
         #setpoints = [1,1,1]   #[angular_velocity, angular_velocity, angular_velocity]
 
         print(msg) 
 
+        #
+
+        setpoints = kinematics.robot_frame_to_wheel_frame(x, y)
         self._set_velocity(setpoints)
 
 
