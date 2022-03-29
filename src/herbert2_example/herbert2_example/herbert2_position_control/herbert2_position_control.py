@@ -13,6 +13,7 @@ import sys
 import termios
 import threading
 import time
+import math
 
 from herbert2_geometry import Quaternion
 from . herbert2_path import Herbert2Path
@@ -189,21 +190,27 @@ class Herbert2PositionControl(Node):
 
             # Step 2: Go Straight
             elif self.step == 2:
-                #distance = math.sqrt(
-                #    (self.goal_pose_x - self.last_pose_x)**2 +
-                #    (self.goal_pose_y - self.last_pose_y)**2)
-                linear_velocity = 0.1  # unit: m/s
-                #twist, self.step = Turtlebot3Path.go_straight(distance, linear_velocity, self.step)
-                self.step = 3
+                #print("LINEAR")
+                
+                x_distance = self._target_pose_x - self._current_pose_x
+                y_distance = self._target_pose_y - self._current_pose_y
+                twist, self.step = Herbert2Path.go_straight(x_distance, y_distance, self.step)
+                
+                #linear_velocity = 0.1  # unit: m/s
+                #twist, self.step = Herbert2Path.go_straight(x_distance, y_distance, linear_velocity, self.step)
 
             # Step 3: Rotate
             elif self.step == 3:
+                self.step = 4
+
+                """
                 # Get the remaining angle required to travel to the goal angular pose.
                 angle: float = self._calc_rotation_angle(self._current_pose_theta, self._target_pose_theta)
                 print(f'Current Pose: {self._current_pose_theta:.3f} Target Pose: {self._target_pose_theta:.3f} Rotation Angle: {angle:.3f}')
                 # Slow down at the end of the rotation.
                 angular_velocity = 0.2  # unit: ????????
                 twist, self.step = Herbert2Path.rotate(angle, angular_velocity, self.step)
+                """
 
             # Reset
             elif self.step == 4:
@@ -224,7 +231,7 @@ class Herbert2PositionControl(Node):
         self._ignore_msg = self._ignore_msg - 1
         if (self._ignore_msg <= 0):
 
-            self._log_info(f'ODOM Message Called')
+            #self._log_info(f'ODOM Message Called')
 
             # Get the relevent odometry data from the message.
             quat: Quaternion = Quaternion.from_msg(msg.pose.pose.orientation)
@@ -283,6 +290,12 @@ class Herbert2PositionControl(Node):
             while input_theta > 179.0 or input_theta < -179.0:
                 self.get_logger().info("Enter a value for theta between -180 and 180")
                 input_theta = float(input("Input theta: "))
+
+            print("")
+            # Calculate the robot's target angular goal pose.
+            pose_theta = self._calc_target_pose_angle(self._current_pose_theta, input_theta)    
+            print(f"Target Theta: {pose_theta}")
+
 
             input("Hit any key to continue.......")
 

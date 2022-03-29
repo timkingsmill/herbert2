@@ -244,15 +244,16 @@ class ODriveDriver(NodeDecorator):
         print('_velocity_message_callback()')
 
         # Rotate the robot.
-        #angular_velocity: float = msg.angular.z 
+        angular_velocity: float = msg.angular.z 
+        setpoints = [angular_velocity, angular_velocity, angular_velocity]
         #setpoints = [1,1,1]   #[angular_velocity, angular_velocity, angular_velocity]
 
-        #print(angular_velocity) 
+        print(msg) 
 
-        #self._set_velocity(setpoints)
+        self._set_velocity(setpoints)
 
 
-
+        """
         # Calc velocity for the axes
         #
         a, b, c = wheel_velocity_from_vector(msg.linear.x, msg.linear.y)
@@ -261,6 +262,7 @@ class ODriveDriver(NodeDecorator):
              b * ODriveDriver.MAX_LINEAR_VELOCITY, 
              c * ODriveDriver.MAX_LINEAR_VELOCITY]
         )
+        """
 
     # -----------------------------------------------------------
 
