@@ -38,6 +38,9 @@ class Herbert2Path():
             twist.linear.x = x_distance
             twist.linear.y = y_distance
         else:
+            # Finished. The robot has reached the target location.
+            twist.linear.x = 0.0
+            twist.linear.y = 0.0
             # Move to the next step. 
             print(f'Linear movement to target completed')
             step += 1

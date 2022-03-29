@@ -214,7 +214,10 @@ class Herbert2PositionControl(Node):
 
             # Reset
             elif self.step == 4:
+                twist.linear.x = 0.0
+                twist.linear.y = 0.0
                 twist.angular.z = 0.0
+
                 self.get_key_state = False
                 self.step = 1
 
