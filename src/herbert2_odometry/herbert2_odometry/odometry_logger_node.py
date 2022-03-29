@@ -58,6 +58,8 @@ class OdometryLoggerNode(Node):
             # Get orientation quaternion
             quat = Quaternion.from_msg(odometry_msg.pose.pose.orientation)
 
+            #self.get_logger().info(f"      Logger Orientation:    {odometry_msg.pose.pose.orientation}")
+
             # Get the robots yaw in degrees
             yaw = quat.get_yaw(True)
 

@@ -180,10 +180,11 @@ class OdometryNode(Node):
             Convert the a, b and c motor position vectors to X and Y robot positions.
 
             Polar Robot Movement:
-                +X: Forward
-                -X: Reverse 
-                +Y: Right
-                -Y: Left
+                +Y: Forward
+                -Y: Reverse 
+                
+                +X: Right
+                -X: Left
         """
 
         # Cache the position of each wheel in units of linear meters. 
@@ -191,8 +192,8 @@ class OdometryNode(Node):
         b_pos: float = self._absolute_wheel_positions[1]
         c_pos: float = self._absolute_wheel_positions[2]
 
-        forward = ((math.sqrt(3) * a_pos) - (math.sqrt(3) * c_pos)) / 3.0
-        right = ((2 * b_pos) - a_pos - c_pos) / 3.0
+        x = -(((2 * b_pos) - a_pos - c_pos) / 3.0)
+        y = ((math.sqrt(3) * a_pos) - (math.sqrt(3) * c_pos)) / 3.0
             
         # Radius of the robot = 0.145
         # radians = 0 .. 2pi
@@ -228,11 +229,11 @@ class OdometryNode(Node):
 
         #self.get_logger().info(f'Robot Location X = {robot_pos[0]:.3f}  Y = {robot_pos[1]:.3f}')
 
-        self._robot_pose[0] = forward  
-        self._robot_pose[1] = right  
+        self._robot_pose[0] = x  
+        self._robot_pose[1] = y  
         self._robot_pose[2] = self._imu_yaw
 
-        ##self.get_logger().info(f'Robot Pose = {self._robot_pose}')
+        #self.get_logger().info(f'Robot Pose = {self._robot_pose}')
 
     # ..............................................................
 
@@ -317,10 +318,14 @@ class OdometryNode(Node):
         # NOTE: Don't use ROLL or PITCH 
         quat = Quaternion.from_euler(0.0, 0.0, self._robot_pose[2], use_degrees = True)
 
+        #self.get_logger().error(f'  quat:                       {quat}') 
+
         odometry_msg.pose.pose.orientation.x = quat.x
         odometry_msg.pose.pose.orientation.y = quat.y
         odometry_msg.pose.pose.orientation.z = quat.z
         odometry_msg.pose.pose.orientation.w = quat.w
+
+        #self.get_logger().info(f"Publisher Orientation: {odometry_msg.pose.pose.orientation}")
 
         # Publish the odometry message.
         self._odom_publisher.publish(odometry_msg)

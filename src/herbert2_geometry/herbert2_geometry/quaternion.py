@@ -120,6 +120,7 @@ class Quaternion():
         sp = sin(pitch * 0.5)
 
         w: float = (cy * cr * cp) + (sy * sr * sp)
+        
         x: float = (cy * sr * cp) - (sy * cr * sp)
         y: float = (cy * cr * sp) + (sy * sr * cp)
         z: float = (sy * cr * cp) - (cy * sr * sp)

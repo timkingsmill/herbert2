@@ -284,6 +284,8 @@ class Herbert2PositionControl(Node):
                 self.get_logger().info("Enter a value for theta between -180 and 180")
                 input_theta = float(input("Input theta: "))
 
+            input("Hit any key to continue.......")
+
             # I don't know what this does, but it seems to be OK.
             settings = termios.tcgetattr(sys.stdin)
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
