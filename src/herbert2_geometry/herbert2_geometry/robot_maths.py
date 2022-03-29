@@ -8,17 +8,23 @@ HALF_SQRT_3 = math.sqrt(3) / 2.0
 # --------------------------------------------------------------------
 
 def wheel_velocity_from_vector(x, y):
-    y = -y
+    """
+        +y : move forward
+        +x : move right
+    """
+
     # calculate angle of the direction vector. (radians) 
     theta = math.atan2(x, y)
 
     # calculate magnitude of the direction vector.
-    mag = math.sqrt((x * x) + (y * y)) 
+    mag = 1.0 ## math.sqrt((x * x) + (y * y)) 
 
     # calculate magnitude compensated x-component of the direction vector 
-    vx = mag * math.cos(theta)
+    #vx = mag * math.cos(theta)
+    vx = mag * math.sin(theta)
     # calculate magnitude compensated y-component of the direction vector
-    vy = mag * math.sin(theta)
+    #vy = mag * math.sin(theta)
+    vy = mag * math.cos(theta)
 
     # calculate axis velocity 
     axisA_vel = 0.5 * vx - (HALF_SQRT_3 * vy)
