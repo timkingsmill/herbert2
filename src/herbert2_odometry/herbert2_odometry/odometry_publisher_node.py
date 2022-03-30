@@ -14,7 +14,8 @@ from sensor_msgs.msg import Imu as ImuMessage
 from sensor_msgs.msg import JointState as JointStateMessage
 
 from herbert2_geometry import Quaternion
-import kinematics
+
+from .kinematics import wheel_frame_to_robot_frame
 
 # .............................................................................
 
