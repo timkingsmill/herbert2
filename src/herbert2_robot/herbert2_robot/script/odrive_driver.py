@@ -50,7 +50,8 @@ class ODriveAxis: pass
 
 class ODriveDriver(NodeDecorator): 
 
-    MAX_LINEAR_VELOCITY = 1.0
+    #MAX_LINEAR_VELOCITY = 1.0
+    MAX_LINEAR_VELOCITY = 0.5
 
     # -----------------------------------------------------------
 
@@ -252,6 +253,7 @@ class ODriveDriver(NodeDecorator):
         y: float = msg.linear.y
 
         setpoints = [angular_velocity, angular_velocity, angular_velocity]
+        
         #setpoints = [1,1,1]   #[angular_velocity, angular_velocity, angular_velocity]
 
         print(msg) 
@@ -262,16 +264,21 @@ class ODriveDriver(NodeDecorator):
         self._set_velocity(setpoints)
 
 
-        """
+        
         # Calc velocity for the axes
         #
         a, b, c = wheel_velocity_from_vector(msg.linear.x, msg.linear.y)
+        print(f'A: {a:.3f}  B: {b:.3f}  C: {c:.3f}') 
+        self._set_velocity([a, b, c])
+
+        """
         self._set_velocity(
             [a * ODriveDriver.MAX_LINEAR_VELOCITY, 
              b * ODriveDriver.MAX_LINEAR_VELOCITY, 
              c * ODriveDriver.MAX_LINEAR_VELOCITY]
         )
         """
+        
 
     # -----------------------------------------------------------
 
