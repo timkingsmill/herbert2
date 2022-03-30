@@ -194,7 +194,8 @@ class OdometryNode(Node):
         b_pos: float = self._absolute_wheel_positions[1]
         c_pos: float = self._absolute_wheel_positions[2]
 
-        x, y = kinematics.wheel_frame_to_robot_frame(a_pos, b_pos, c_pos)
+        # Calc kinematics
+        x, y = wheel_frame_to_robot_frame(a_pos, b_pos, c_pos)
 
         ###x = -(((2 * b_pos) - a_pos - c_pos) / 3.0)
         ###y = ((math.sqrt(3) * a_pos) - (math.sqrt(3) * c_pos)) / 3.0
