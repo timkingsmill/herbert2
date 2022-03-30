@@ -267,9 +267,9 @@ class ODriveDriver(NodeDecorator):
         
         # Calc velocity for the axes
         #
-        a, b, c = wheel_velocity_from_vector(msg.linear.x, msg.linear.y)
-        print(f'A: {a:.3f}  B: {b:.3f}  C: {c:.3f}') 
-        self._set_velocity([a, b, c])
+        #a, b, c = wheel_velocity_from_vector(msg.linear.x, msg.linear.y)
+        #print(f'A: {a:.3f}  B: {b:.3f}  C: {c:.3f}') 
+        #self._set_velocity([a, b, c])
 
         """
         self._set_velocity(
