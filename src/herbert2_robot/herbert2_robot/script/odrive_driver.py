@@ -260,9 +260,9 @@ class ODriveDriver(NodeDecorator):
 
         #
 
-        setpoints = kinematics.robot_frame_to_wheel_frame(x, y)
+        #setpoints = kinematics.robot_frame_to_wheel_frame(x, y)
+        setpoints = kinematics.robot_frame_to_wheel_frame_velocity(x, y)
         self._set_velocity(setpoints)
-
 
         
         # Calc velocity for the axes

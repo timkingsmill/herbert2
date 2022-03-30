@@ -23,3 +23,24 @@ def robot_frame_to_wheel_frame(x: float, y: float) -> Tuple[float, float, float]
     return left, rear, right
 
 # ..............................................................................................
+
+def robot_frame_to_wheel_frame_velocity(x: float, y: float) -> Tuple[float, float, float]:
+    # Reverse kinematics
+
+    left: float = 0.0
+    rear: float = 0.0
+    right: float = 0.0
+    
+    # Calculate and normalize the direction vector.
+    mag = math.sqrt((x * x) + (y * y)) 
+    if (mag > 0.000001):
+        vx = x / mag
+        vy = y / mag
+
+        left  = (-1.0 * (vx / 2.0)) - ((sqrt3 * vy) / 2.0)
+        rear  = vx
+        right = (-1.0 * (vx / 2.0)) + ((sqrt3 * vy) / 2.0)
+
+    return left, rear, right
+
+# ..............................................................................................
