@@ -34,7 +34,7 @@ class Herbert2Path():
     def go_straight(x_distance, y_distance, step):
         twist = Twist()
 
-        if (math.abs(x_distance) > 0.01) or (math.abs(y_distance) > 0.01):  # 0.01 is small enough value
+        if (abs(x_distance) > 0.01) or (abs(y_distance) > 0.01):  # 0.01 is small enough value
             twist.linear.x = x_distance
             twist.linear.y = y_distance
         else:
