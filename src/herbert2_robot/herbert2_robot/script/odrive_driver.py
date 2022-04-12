@@ -448,8 +448,6 @@ class ODriveAxis():
     def config_axis(self) -> None:
         self.clear_errors()
 
-        self.axis.controller.config.control_mode = CONTROL_MODE_VELOCITY_CONTROL
-
         # Set acceleration (turns/sec^2)
         self.axis.controller.config.vel_ramp_rate = 4 
         self.axis.controller.config.inertia = 0 

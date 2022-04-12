@@ -37,6 +37,8 @@ setup(
                 herbert2_example.herbert2_position_control.main:main',
             'herbert2_rotation_control = \
                 herbert2_example.herbert2_rotation_control.main:main',
+            'herbert2_trajectory_control = \
+                herbert2_example.herbert2_trajectory_control.main:main',
         ],
     },
 )

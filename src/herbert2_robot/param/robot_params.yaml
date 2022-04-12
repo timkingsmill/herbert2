@@ -1,11 +1,9 @@
   herbert2_robot:
     ros__parameters:
       odrv0:
-        #path: 'usb'
         serial_number: 207A39994D4D
        
       odrv1:
-        #path: 'usb'
         serial_number: 2089399B4D4D
 
       # Accelerometer Calibration

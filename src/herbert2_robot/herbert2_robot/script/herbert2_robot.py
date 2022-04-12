@@ -10,8 +10,12 @@ from time import sleep
 
 from rclpy.node import Node
 
-from .odrive_driver import ODriveDriver
+from .motor_driver import MotorDriver
 from .sensors import JointSensors 
+
+from .motor_controller import MotorController
+from .trajectory_controller import TrajectoryController
+from .velocity_controller import VelocityController
 
 # IMUSensor
 # from ros2.ros2_lidar_driver_py.ros2_lidar_driver_py import LidarDriver
@@ -23,37 +27,35 @@ class Herbert2Robot(Node):
     """
     Herbert2 Robot Node.
     """
+
     # -----------------------------------------------------------
 
     def __init__(self) -> None:
         """ Herbert2 Robot Constructor """
         super().__init__(node_name = 'herbert2_robot')
-
-        # Create the ODrive Driver.
-        self._odrive_driver = ODriveDriver(self)
         
-        # Calibrate the driver
-        self._odrive_driver.calibrate()
-        self._odrive_driver.enter_velocity_control()
+        self._motor_controller: MotorController = VelocityController(self, MotorDriver(self))
+        self._motor_controller.initialize()
+        # Calibrate the motor driver
+        self._motor_controller.calibrate()
+        self._motor_controller.set_input_velocity(2.0, 6.0, 3.0)
 
-        # Init odometry
-        #self._odrive_controller = DiffODriveController(self)
 
-        self._add_sensors()
+        #self._add_sensors()
 
         # Setup thread to update all sensor data.
-        self._update_thread = threading.Thread(target = self._update_thread_proc)
-        self._update_thread.daemon = False
-        self._update_thread.name = 'update-thread'
+        #self._update_thread = threading.Thread(target = self._update_thread_proc)
+        #self._update_thread.daemon = False
+        #self._update_thread.name = 'update-thread'
 
-        self._connected = True
-        self._update_thread.start()
+        #self._connected = True
+        #self._update_thread.start()
 
     # -----------------------------------------------------------
     
     def destroy_node(self):
-        self._connected = False
-        self._odrive_driver._stop()
+        #self._connected = False
+        self._motor_controller.stop()
 
         super().destroy_node()
         self.get_logger().info('Destroyed the Herbert2 robot node')
