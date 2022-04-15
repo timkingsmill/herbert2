@@ -39,6 +39,8 @@ setup(
                 herbert2_example.herbert2_rotation_control.main:main',
             'herbert2_trajectory_control = \
                 herbert2_example.herbert2_trajectory_control.main:main',
+            'herbert2_trajectory_control_keyboard = \
+                herbert2_example.herbert2_trajectory_control.trajectory_control_keyboard:main',
         ],
     },
 )
