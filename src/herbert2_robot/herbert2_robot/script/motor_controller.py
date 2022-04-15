@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from lib2to3.pgen2 import driver
 import time
 import weakref
 from rclpy.node import Node
@@ -61,6 +60,7 @@ class MotorController(ABC):
 
     def stop(self) -> None:
         self.get_logger().info('Stopping all axes.')
+        self.set_input_velocity(0, 0, 0)
         for axis in self.motor_driver:
             axis.requested_state = AXIS_STATE_IDLE
             while (axis.current_state != AXIS_STATE_IDLE):
@@ -115,6 +115,8 @@ class MotorController(ABC):
 
         # call the overriden method
         self.do_initialize_axis(axis)
+
+        self.get_logger().info('Initializing Axis Completed.')
 
     # ---------------------------------------------------------------------
 

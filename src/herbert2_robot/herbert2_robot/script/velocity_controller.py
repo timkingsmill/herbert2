@@ -29,8 +29,8 @@ class VelocityController(MotorController):
         axis.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
 
         # Wait for the axis to enter closed loop mode.
-        while axis.current_state != AXIS_STATE_CLOSED_LOOP_CONTROL:
-            time.sleep(0.1)
+        #while axis.current_state != AXIS_STATE_CLOSED_LOOP_CONTROL:
+        #    time.sleep(0.1)
 
         # Set axis controllers to position control mode
         axis.controller.config.control_mode = CONTROL_MODE_VELOCITY_CONTROL

@@ -14,7 +14,9 @@ from .motor_driver import MotorDriver
 from .sensors import JointSensors 
 
 from .motor_controller import MotorController
-from .trajectory_controller import TrajectoryController
+#from .trajectory_controller import TrajectoryController
+from .trajectory_planer import TrajectoryPlaner
+
 from .velocity_controller import VelocityController
 
 # IMUSensor
@@ -33,12 +35,17 @@ class Herbert2Robot(Node):
     def __init__(self) -> None:
         """ Herbert2 Robot Constructor """
         super().__init__(node_name = 'herbert2_robot')
-        
+
+        # Setup the motor controller and driver.        
         self._motor_controller: MotorController = VelocityController(self, MotorDriver(self))
         self._motor_controller.initialize()
         # Calibrate the motor driver
         self._motor_controller.calibrate()
-        self._motor_controller.set_input_velocity(2.0, 6.0, 3.0)
+
+        # Create the trajectory planer.
+        self._trajectory_planner: TrajectoryPlaner = TrajectoryPlaner(self._motor_controller)
+
+        #self._motor_controller.set_input_velocity(2.0, 6.0, 3.0)
 
 
         #self._add_sensors()

@@ -29,13 +29,22 @@ class MotorDriver():
         """ Motor Driver constructor """
         self._node_ref = weakref.ref(node)
         self.get_logger().info('Initializing Herbert2 Motor Driver') 
-        
+
+        connected: bool = True  
+
         for index in [0, 1]:
             drive_name: str = f'odrv{index}'
             # Get the ODrive's serial number
             param = self._node_ref().declare_parameter(drive_name + '.serial_number', 0)
-            self._odrives[index] = MotorDriver._ODrive(param.value)
+            serial_number = param.value
+            odrive = MotorDriver._ODrive(serial_number)
+            if (odrive.is_connected):
+                self._odrives[index] = MotorDriver._ODrive(serial_number)
+            else:
+                self._odrives[index] = None
+                connected = False
 
+        self._is_connected = connected
 
     # .............................................................................
 
@@ -61,6 +70,12 @@ class MotorDriver():
         """
         for axis in (self.axis0, self.axis1, self.axis2):
             yield axis
+
+    # .............................................................................
+
+    @property
+    def is_connected(self):
+        return self._is_connected
 
     # .............................................................................
 
@@ -116,11 +131,26 @@ class MotorDriver():
 
     class _ODrive:
 
-        def __init__(self, serial_number: str):
+        def __init__(self, serial_number: int):
             self._serial_number = serial_number
+            self._is_connected = False
+
             self._logger = get_logger('MotorDriver._ODrive')
+
+            # Find and connect to the ODrive
             self._odrive = find_any(serial_number = serial_number)
-            self._logger.info(f'Found ODrive with serial number {serial_number}')
+
+            # Check if the ODrive is connected
+            odrive_serial_number = f'{self._odrive.serial_number:X}'
+            if (odrive_serial_number == serial_number):
+                self._is_connected = True
+                self._logger.info(f'Found ODrive with serial number: {odrive_serial_number}')
+
+        # .............................................................................
+
+        @property
+        def is_connected(self):
+            return self._is_connected
 
         # .............................................................................
 
@@ -141,5 +171,12 @@ class MotorDriver():
             return self._odrive.axis1
 
         # .............................................................................
+
+        @property
+        def serial_number(self):
+            return self._serial_number
+
+        # .............................................................................
+
 
 # .................................................................................
