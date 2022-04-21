@@ -1,3 +1,4 @@
+import re
 import numpy as np
 import weakref
 
@@ -68,7 +69,7 @@ class TrajectoryPlaner:
                     while (time < self._trajectory.total_time):
                         step: TrajectoryStep = self._trajectory.evaluate(time)
                         #print(step.velocity)
-                        self._controller.set_input_velocity(step.velocity, step.velocity, step.velocity)
+                        self._controller.set_input_velocity(step.velocity * left, step.velocity * rear, step.velocity * right)
                         time += time_interval
 
             self._controller.set_input_velocity(0.0, 0.0, 0.0)
